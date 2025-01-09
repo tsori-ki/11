@@ -67,7 +67,7 @@ class CompilationEngine:
             name = self.tokenizer.current_token()
             self.symbol_table.define(name, type, kind)
             self.tokenizer.advance()
-            # blah blah
+            
 
     def compile_subroutine(self, class_name: str) -> None:
         """Compiles a complete method, function, or constructor."""
@@ -143,25 +143,33 @@ class CompilationEngine:
         self.vm_writer.write_pop("temp", 0)
         self.tokenizer.advance()
 
-    def compile_let(self) -> None:  # Naomi
+    def compile_let(self) -> None:
         """Compiles a let statement."""
-        self.output_stream.write("<letStatement>\n")
-        self.output_stream.write(f"<keyword> {self.tokenizer.keyword()} </keyword>\n")
+        self.tokenizer.advance()  
+        name = self.tokenizer.current_token()
         self.tokenizer.advance()
-        self.output_stream.write(f"<identifier> {self.tokenizer.identifier()} </identifier>\n")
-        self.tokenizer.advance()
-        if self.tokenizer.symbol() == "[":
-            self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-            self.tokenizer.advance()
+
+        if self.tokenizer.current_token() == "[":  # Array assignment
+            self.tokenizer.advance()  
+            self.compile_expression()  
+            self.vm_writer.write_push(self.symbol_table.kind_of(name), self.symbol_table.index_of(name))  # Push array base
+            self.vm_writer.write_arithmetic("+")  # Compute address (base + index)
+            self.tokenizer.advance()  
+            self.tokenizer.advance()  
+            self.compile_expression()  
+            self.vm_writer.write_pop("temp", 0)  # Store value temporarily
+            self.vm_writer.write_pop("pointer", 1)  # Set pointer 1 to computed address
+            self.vm_writer.write_push("temp", 0)  # Push the value
+            self.vm_writer.write_pop("that", 0)  # Write value to address
+        elif self.tokenizer.current_token() == "=":  # Variable assignment
+            self.tokenizer.advance()  
             self.compile_expression()
-            self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-            self.tokenizer.advance()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")  # =
-        self.tokenizer.advance()
-        self.compile_expression()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-        self.output_stream.write("</letStatement>\n")
-        self.tokenizer.advance()
+            self.vm_writer.write_pop(self.symbol_table.kind_of(name), self.symbol_table.index_of(name))  # Store in variable
+
+        self.tokenizer.advance()  
+
+
+
 
     def compile_while(self) -> None:
         """Compiles a while statement."""
