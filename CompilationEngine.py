@@ -213,29 +213,33 @@ class CompilationEngine:
         self.output_stream.write("</ifStatement>\n")
 
     def compile_term(self) -> None:
-        """Compiles a term."""
-        if self.tokenizer.token_type() == 'INT_CONST':
-            self.vm_writer.write_push("constant", self.tokenizer.int_val())
+        """Compiles a term and generates the corresponding VM code."""
+        token_type = self.tokenizer.token_type()
+        token_value = self.tokenizer.current_token
+
+        if token_type == 'INT_CONST':
+            self.vm_writer.write_push('constant', self.tokenizer.int_val())
             self.tokenizer.advance()
-        elif self.tokenizer.token_type() == 'STRING_CONST':
-            self.vm_writer.write_push("constant", len(self.tokenizer.string_val()))
-            self.vm_writer.write_call("String.new", 1)
-            for char in self.tokenizer.string_val():
-                self.vm_writer.write_push("constant", ord(char))
-                self.vm_writer.write_call("String.appendChar", 2)
+        elif token_type == 'STRING_CONST':
+            string_value = self.tokenizer.string_val()
+            self.vm_writer.write_push('constant', len(string_value))
+            self.vm_writer.write_call('String.new', 1)
+            for char in string_value:
+                self.vm_writer.write_push('constant', ord(char))
+                self.vm_writer.write_call('String.appendChar', 2)
             self.tokenizer.advance()
-        elif self.tokenizer.token_type() == 'KEYWORD':
-            if self.tokenizer.keyword() == 'true':
+        elif token_type == 'KEYWORD':
+            if token_value == 'true':
                 self.vm_writer.write_push('constant', 0)
                 self.vm_writer.write_arithmetic('not')
-            elif self.tokenizer.keyword() in ['false', 'null']:
+            elif token_value in ['false', 'null']:
                 self.vm_writer.write_push('constant', 0)
-            elif self.tokenizer.keyword() == 'this':
+            elif token_value == 'this':
                 self.vm_writer.write_push('pointer', 0)
             self.tokenizer.advance()
-        elif self.tokenizer.token_type() == 'IDENTIFIER':
+        elif token_type == 'IDENTIFIER':
             self.tokenizer.advance()
-            if self.tokenizer.symbol() == "[":
+            if self.tokenizer.symbol() == '[':
                 self.tokenizer.advance()
                 self.compile_expression()
                 self.vm_writer.write_push('that', 0)
@@ -243,33 +247,28 @@ class CompilationEngine:
                 self.vm_writer.write_pop('pointer', 1)
                 self.vm_writer.write_push('that', 0)
                 self.tokenizer.advance()
-            elif self.tokenizer.symbol() == ".":
-                self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
+
+            elif self.tokenizer.symbol() in ['(', '.']:
+                self.compile_subroutine_call(token_value)
+            else:
+                self.vm_writer.write_push(self.symbol_table.kind_of(token_value), self.symbol_table.index_of(token_value))
                 self.tokenizer.advance()
-                self.output_stream.write(f"<identifier> {self.tokenizer.identifier()} </identifier>\n")
-                self.tokenizer.advance()
-                self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-                self.tokenizer.advance()
-                self.compile_expression_list()
-                self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-                self.tokenizer.advance()
-            elif self.tokenizer.symbol() == "(":
-                self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-                self.tokenizer.advance()
-                self.compile_expression_list()
-                self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-                self.tokenizer.advance()
+
+
+
         elif self.tokenizer.token_type() == "SYMBOL" and self.tokenizer.symbol() == "(":
-            self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
             self.tokenizer.advance()
             self.compile_expression()
-            self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
             self.tokenizer.advance()
-        elif self.tokenizer.symbol() in ["~", "-"]:
-            self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
+        elif self.tokenizer.symbol() in ["~", "-", "shiftleft", "shiftright"]:
             self.tokenizer.advance()
             self.compile_term()
-        self.output_stream.write("</term>\n")
+            if token_value == "-":
+                self.vm_writer.write_arithmetic("neg")
+            elif token_value == "~":
+                self.vm_writer.write_arithmetic("not")
+            else:
+                self.vm_writer.write_arithmetic(token_value)
 
     def compile_expression(self) -> None:
         """Compiles an expression."""
@@ -307,3 +306,28 @@ class CompilationEngine:
             self.tokenizer.advance()
         self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
         self.tokenizer.advance()
+
+    def compile_subroutine_call(self, subroutine_name):
+        """Compiles a subroutine call and generates the corresponding VM code."""
+        n_args = 0
+        if self.tokenizer.symbol() == '.':
+            self.tokenizer.advance()
+            class_or_var_name = subroutine_name
+            subroutine_name = self.tokenizer.identifier()
+            self.tokenizer.advance()
+            if self.symbol_table.kind_of(class_or_var_name): # class_or_var_name is a variable
+                self.vm_writer.write_push(self.symbol_table.kind_of(class_or_var_name),
+                                          self.symbol_table.index_of(class_or_var_name))
+                n_args += 1
+                subroutine_name = f"{self.symbol_table.type_of(class_or_var_name)}.{subroutine_name}"
+            else:
+                subroutine_name = f"{class_or_var_name}.{subroutine_name}"
+        else:
+            self.vm_writer.write_push('pointer', 0)
+            n_args += 1
+
+        self.tokenizer.advance()  # (
+        n_args += self.compile_expression_list()
+        self.tokenizer.advance()  # )
+
+        self.vm_writer.write_call(subroutine_name, n_args)
