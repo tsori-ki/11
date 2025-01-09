@@ -51,13 +51,20 @@ class CompilationEngine:
                         if self.current_token == "}":
                             return
 
-    def compile_class_var_dec(self) -> None:
+    def compile_class_var_dec(self) -> None: #Naomi
         """Compiles a static declaration or a field declaration."""
-        self.output_stream.write("<classVarDec>\n")
-        self.output_stream.write(f"<keyword> {self.tokenizer.keyword()} </keyword>\n")
+        kind = self.tokenizer.current_token()
         self.tokenizer.advance()
-        self.compile_type_and_var_name()
-        self.output_stream.write("</classVarDec>\n")
+        type = self.tokenizer.current_token()
+        self.tokenizer.advance()
+        name = self.tokenizer.current_token()
+        self.symbol_table.define(name, type, kind)
+        self.tokenizer.advance()
+        while self.tokenizer.current_token() == ",": # if there are more variables
+            self.tokenizer.advance()
+            name = self.tokenizer.current_token()
+            self.symbol_table.define(name, type, kind)
+            self.tokenizer.advance()
 
     def compile_subroutine(self, class_name: str) -> None:
         """Compiles a complete method, function, or constructor."""
@@ -86,29 +93,31 @@ class CompilationEngine:
         self.compile_statements()
         self.tokenizer.advance()
 
-    def compile_parameter_list(self) -> None:
+    def compile_parameter_list(self) -> None: #Naomi
         """Compiles a (possibly empty) parameter list."""
-        self.output_stream.write("<parameterList>\n")
-        while self.tokenizer.token_type() != 'SYMBOL':
-            if self.tokenizer.token_type() == 'KEYWORD':
-                self.output_stream.write(f"<keyword> {self.tokenizer.keyword()} </keyword>\n")
-            elif self.tokenizer.token_type() == 'IDENTIFIER':
-                self.output_stream.write(f"<identifier> {self.tokenizer.identifier()} </identifier>\n")
+        while self.tokenizer.current_token() != ")":
+            type = self.tokenizer.current_token()
             self.tokenizer.advance()
-            self.output_stream.write(f"<identifier> {self.tokenizer.identifier()} </identifier>\n")
+            name = self.tokenizer.current_token()
+            self.symbol_table.define(name, type, "ARG")
             self.tokenizer.advance()
-            if self.tokenizer.symbol() == ",":
-                self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
+            if self.tokenizer.current_token() == ",":
                 self.tokenizer.advance()
-        self.output_stream.write("</parameterList>\n")
 
-    def compile_var_dec(self) -> None:
+    def compile_var_dec(self) -> None: #Naomi
         """Compiles a var declaration."""
-        self.output_stream.write("<varDec>\n")
-        self.output_stream.write(f"<keyword> {self.tokenizer.keyword()} </keyword>\n")
+        type = self.tokenizer.current_token()
         self.tokenizer.advance()
-        self.compile_type_and_var_name()
-        self.output_stream.write("</varDec>\n")
+        name = self.tokenizer.current_token()
+        self.symbol_table.define(name, type, "VAR")
+        self.tokenizer.advance()
+        while self.tokenizer.current_token() == ",": # if there are more variables
+            self.tokenizer.advance()
+            name = self.tokenizer.current_token()
+            self.symbol_table.define(name, type, "VAR")
+            self.tokenizer.advance()
+        if self.tokenizer.current_token() == ";":
+            self.tokenizer.advance()
 
     def compile_statements(self) -> None:
         """Compiles a sequence of statements."""
@@ -124,23 +133,14 @@ class CompilationEngine:
             elif self.tokenizer.keyword() == "return":
                 self.compile_return()
 
-    def compile_do(self) -> None:
+    def compile_do(self) -> None: #Naomi
         """Compiles a do statement."""
         self.tokenizer.advance()
-        subroutine_name = self.tokenizer.identifier()
+        self.compile_expression()
+        self.vm_writer.write_pop("temp", 0)
         self.tokenizer.advance()
-        if self.tokenizer.symbol() == ".":
-            self.tokenizer.advance()
-            subroutine_name += f".{self.tokenizer.identifier()}"
-            self.tokenizer.advance() # (
-        self.tokenizer.advance()
-        expressions_count  = self.compile_expression_list()
-        self.vm_writer.write_call(subroutine_name, expressions_count)
-        self.vm_writer.write_pop("temp", 0) # Discard the return value (do statements don't return anything)
-        self.tokenizer.advance() # )
-        self.tokenizer.advance() # ;
 
-    def compile_let(self) -> None:
+    def compile_let(self) -> None: #Naomi
         """Compiles a let statement."""
         self.output_stream.write("<letStatement>\n")
         self.output_stream.write(f"<keyword> {self.tokenizer.keyword()} </keyword>\n")
