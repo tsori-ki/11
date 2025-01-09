@@ -332,3 +332,4 @@ class CompilationEngine:
         self.tokenizer.advance()  # )
 
         self.vm_writer.write_call(subroutine_name, n_args)
+        # self.tokenizer.advance()
