@@ -65,6 +65,7 @@ class CompilationEngine:
             name = self.tokenizer.current_token()
             self.symbol_table.define(name, type, kind)
             self.tokenizer.advance()
+            #blah blah
 
     def compile_subroutine(self, class_name: str) -> None:
         """Compiles a complete method, function, or constructor."""
