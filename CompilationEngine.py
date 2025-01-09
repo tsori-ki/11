@@ -29,6 +29,7 @@ class CompilationEngine:
         self.output_stream = output_stream
         self.current_token = ""
         self.class_name = ""
+        self.if_counter = 0
 
     def compile_class(self) -> None:
         """Compiles a complete class."""
@@ -67,7 +68,6 @@ class CompilationEngine:
             name = self.tokenizer.current_token()
             self.symbol_table.define(name, type, kind)
             self.tokenizer.advance()
-            
 
     def compile_subroutine(self, class_name: str) -> None:
         """Compiles a complete method, function, or constructor."""
@@ -168,25 +168,40 @@ class CompilationEngine:
 
         self.tokenizer.advance()  
 
-
-
-
     def compile_while(self) -> None:
         """Compiles a while statement."""
-        self.output_stream.write("<whileStatement>\n")
-        self.output_stream.write(f"<keyword> {self.tokenizer.keyword()} </keyword>\n")
-        self.tokenizer.advance()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-        self.tokenizer.advance()
+        while_counter = self.while_counter
+        self.while_counter += 1
+
+        # Write the label for the beginning of the while loop
+        self.vm_writer.write_label(f"WHILE_EXP{while_counter}")
+
+        # Skip the 'while' keyword and the '(' symbol
+        self.tokenizer.advance()  # Skip 'while'
+        self.tokenizer.advance()  # Skip '('
+
+        # Compile the condition expression
         self.compile_expression()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-        self.tokenizer.advance()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-        self.tokenizer.advance()
+
+        # Write the VM code for the condition
+        self.vm_writer.write_arithmetic("NOT")
+        self.vm_writer.write_if(f"WHILE_END{while_counter}")
+
+        # Skip the ')' symbol and the '{' symbol
+        self.tokenizer.advance()  # Skip ')'
+        self.tokenizer.advance()  # Skip '{'
+
+        # Compile the statements inside the while loop
         self.compile_statements()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-        self.output_stream.write("</whileStatement>\n")
-        self.tokenizer.advance()
+
+        # Write the VM code to go back to the beginning of the loop
+        self.vm_writer.write_goto(f"WHILE_EXP{while_counter}")
+
+        # Write the label for the end of the while loop
+        self.vm_writer.write_label(f"WHILE_END{while_counter}")
+
+        # Skip the '}' symbol
+        self.tokenizer.advance()  # Skip '}'
 
     def compile_return(self) -> None:
         """Compiles a return statement."""
@@ -200,28 +215,36 @@ class CompilationEngine:
 
     def compile_if(self) -> None:
         """Compiles an if statement, possibly with a trailing else clause."""
-        self.output_stream.write("<ifStatement>\n")
-        self.output_stream.write(f"<keyword> {self.tokenizer.keyword()} </keyword>\n")
-        self.tokenizer.advance()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-        self.tokenizer.advance()
+        if_counter = self.if_counter
+        self.if_counter += 1
+
+        # 'if' keyword
+        self.tokenizer.advance()  # Skip 'if'
+        self.tokenizer.advance()  # Skip '('
+
+        # Compile the condition expression
         self.compile_expression()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-        self.tokenizer.advance()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-        self.tokenizer.advance()
+        self.vm_writer.write_arithmetic("not")
+        self.vm_writer.write_if(f"IF_FALSE{if_counter}")
+
+        self.tokenizer.advance()  # Skip ')'
+        self.tokenizer.advance()  # Skip '{'
+
+        # Compile the 'if' body
         self.compile_statements()
-        self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-        self.tokenizer.advance()
-        if self.tokenizer.token_type() == 'KEYWORD' and self.tokenizer.keyword() == "else":
-            self.output_stream.write(f"<keyword> {self.tokenizer.keyword()} </keyword>\n")
-            self.tokenizer.advance()
-            self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-            self.tokenizer.advance()
+        self.vm_writer.write_goto(f"IF_END{if_counter}")
+        self.vm_writer.write_label(f"IF_FALSE{if_counter}")
+
+        self.tokenizer.advance()  # Skip '}'
+
+        # Compile the 'else' body if present
+        if self.tokenizer.current_token == "else":
+            self.tokenizer.advance()  # Skip 'else'
+            self.tokenizer.advance()  # Skip '{'
             self.compile_statements()
-            self.output_stream.write(f"<symbol> {self.tokenizer.symbol()} </symbol>\n")
-            self.tokenizer.advance()
-        self.output_stream.write("</ifStatement>\n")
+            self.tokenizer.advance()  # Skip '}'
+
+        self.vm_writer.write_label(f"IF_END{if_counter}")
 
     def compile_term(self) -> None:
         """Compiles a term and generates the corresponding VM code."""
@@ -286,6 +309,10 @@ class CompilationEngine:
         """Compiles an expression."""
         self.compile_term()
         while self.tokenizer.current_token in ["+", "-", "*", "/", "|", "=", "<", ">", "&"]:
+            if self.tokenizer.current_token == "*":
+                self.vm_writer.write_call("Math.multiply", 2)
+            elif self.tokenizer.current_token == "/":
+                self.vm_writer.write_call("Math.divide", 2)
             self.tokenizer.advance()
             self.compile_term()
             self.vm_writer.write_arithmetic(self.tokenizer.current_token)
