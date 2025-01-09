@@ -182,7 +182,7 @@ class JackTokenizer:
             Should be called only when token_type() is "SYMBOL".
             Recall that symbol was defined in the grammar like so:
             symbol: '{' | '}' | '(' | ')' | '[' | ']' | '.' | ',' | ';' | '+' | 
-              '-' | '*' | '/' | '&' | '|' | '<' | '>' | '=' | '~' | '^' | '#'
+              '-' | '*' | '/' | '&' | '|' | '<' |   ``'>' | '=' | '~' | '^' | '#'
         """
         # if self.current_token == "<":
         #     return "&lt;"
