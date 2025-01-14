@@ -301,14 +301,15 @@ class CompilationEngine:
         """Compiles an expression."""
         self.compile_term()
         while self.tokenizer.current_token in ["+", "-", "*", "/", "|", "=", "<", ">", "&"]:
-            if self.tokenizer.current_token == "*":
+            op = self.tokenizer.current_token
+            self.tokenizer.advance()
+            self.compile_term()
+            if op == "*":
                 self.vm_writer.write_call("Math.multiply", 2)
-            elif self.tokenizer.current_token == "/":
+            elif op == "/":
                 self.vm_writer.write_call("Math.divide", 2)
             else:
-                self.compile_term()
-                self.vm_writer.write_arithmetic(self.tokenizer.current_token)
-            self.tokenizer.advance()
+                self.vm_writer.write_arithmetic(op)
 
     def compile_expression_list(self) -> int:
         """Compiles a (possibly empty) comma-separated list of expressions."""
