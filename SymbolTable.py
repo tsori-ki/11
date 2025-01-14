@@ -45,17 +45,17 @@ class SymbolTable:
             kind (str): the kind of the new identifier, can be:
             "STATIC", "FIELD", "ARG", "VAR".
         """
-        if kind == "STATIC":
+        if kind == "static":
             self.class_table[name] = {"type": type, "kind": kind, "index": self.static_count}
             self.static_count += 1
-        elif kind == "FIELD":
-            self.class_table[name] = {"type": type, "kind": kind, "index": self.field_count}
+        elif kind == "field":
+            self.class_table[name] = {"type": type, "kind": "this", "index": self.field_count}
             self.field_count += 1
-        elif kind == "ARG":
+        elif kind == "argument":
             self.subroutine_table[name] = {"type": type, "kind": kind, "index": self.arg_count}
             self.arg_count += 1
-        elif kind == "VAR":
-            self.subroutine_table[name] = {"type": type, "kind": kind, "index": self.local_count}
+        elif kind == "var":
+            self.subroutine_table[name] = {"type": type, "kind": "local", "index": self.local_count}
             self.local_count += 1
 
     def var_count(self, kind: str) -> int:
@@ -67,13 +67,13 @@ class SymbolTable:
             int: the number of variables of the given kind already defined in 
             the current scope.
         """
-        if kind == "STATIC":
+        if kind == "static":
             return self.static_count
-        elif kind == "FIELD":
+        elif kind == "field":
             return self.field_count
-        elif kind == "ARG":
+        elif kind == "arg":
             return self.arg_count
-        elif kind == "VAR":
+        elif kind == "var":
             return self.local_count
 
     def kind_of(self, name: str) -> str:
@@ -89,8 +89,6 @@ class SymbolTable:
             return self.subroutine_table[name]["kind"]
         elif name in self.class_table:
             return self.class_table[name]["kind"]
-        else:
-            return None
 
     def type_of(self, name: str) -> str:
         """
@@ -104,8 +102,7 @@ class SymbolTable:
             return self.subroutine_table[name]["type"]
         elif name in self.class_table:
             return self.class_table[name]["type"]
-        else:
-            return None
+
 
     def index_of(self, name: str) -> int:
         """
@@ -119,5 +116,3 @@ class SymbolTable:
             return self.subroutine_table[name]["index"]
         elif name in self.class_table:
             return self.class_table[name]["index"]
-        else:
-            return None

@@ -56,7 +56,7 @@ class CompilationEngine:
 
     def compile_class_var_dec(self) -> None:  # Naomi
         """Compiles a static declaration or a field declaration."""
-        kind = self.tokenizer.current_token
+        kind = self.tokenizer.current_token # static or field
         self.tokenizer.advance()
         var_type = self.tokenizer.current_token
         self.tokenizer.advance()
@@ -70,9 +70,10 @@ class CompilationEngine:
             self.tokenizer.advance() # Skip variable name
         self.tokenizer.advance() # Skip ';'
 
-
     def compile_subroutine(self) -> None:
         """Compiles a complete method, function, or constructor."""
+        self.if_counter = 0
+        self.while_counter = 0
         subroutine_type = self.tokenizer.keyword()
         self.tokenizer.advance() # Skip 'constructor', 'function', or 'method'
         self.tokenizer.advance() # Skip return type
@@ -101,7 +102,7 @@ class CompilationEngine:
             type = self.tokenizer.current_token
             self.tokenizer.advance()
             name = self.tokenizer.current_token
-            self.symbol_table.define(name, type, "ARG")
+            self.symbol_table.define(name, type, "argument")
             self.tokenizer.advance()
             if self.tokenizer.current_token == ",":
                 self.tokenizer.advance()
@@ -112,12 +113,12 @@ class CompilationEngine:
         var_type = self.tokenizer.current_token
         self.tokenizer.advance()
         name = self.tokenizer.current_token
-        self.symbol_table.define(name, var_type, "VAR")
+        self.symbol_table.define(name, var_type, "var")
         self.tokenizer.advance()
         while self.tokenizer.current_token == ",":  # if there are more variables
             self.tokenizer.advance()
             name = self.tokenizer.current_token
-            self.symbol_table.define(name, var_type, "VAR")
+            self.symbol_table.define(name, var_type, "var")
             self.tokenizer.advance()
         if self.tokenizer.current_token == ";":
             self.tokenizer.advance()
@@ -170,7 +171,9 @@ class CompilationEngine:
 
     def compile_while(self) -> None:
         """Compiles a while statement."""
-        self.vm_writer.write_label(f"WHILE_EXP{self.while_counter}")
+        current_while = self.while_counter
+        self.while_counter += 1
+        self.vm_writer.write_label(f"WHILE_EXP{current_while}")
 
         # Skip the 'while' keyword and the '(' symbol
         self.tokenizer.advance()  # Skip 'while'
@@ -181,9 +184,8 @@ class CompilationEngine:
 
         # Write the VM code for the condition
         self.vm_writer.write_arithmetic("not")
-        self.vm_writer.write_if(f"WHILE_END{self.while_counter}")
+        self.vm_writer.write_if(f"WHILE_END{current_while}")
 
-        # Skip the ')' symbol and the '{' symbol
         self.tokenizer.advance()  # Skip ')'
         self.tokenizer.advance()  # Skip '{'
 
@@ -191,14 +193,12 @@ class CompilationEngine:
         self.compile_statements()
 
         # Write the VM code to go back to the beginning of the loop
-        self.vm_writer.write_goto(f"WHILE_EXP{self.while_counter}")
+        self.vm_writer.write_goto(f"WHILE_EXP{current_while}")
 
         # Write the label for the end of the while loop
-        self.vm_writer.write_label(f"WHILE_END{self.while_counter}")
+        self.vm_writer.write_label(f"WHILE_END{current_while}")
 
         self.tokenizer.advance()  # Skip '}'
-
-        self.while_counter += 1
 
     def compile_return(self) -> None:
         """Compiles a return statement."""
@@ -212,21 +212,24 @@ class CompilationEngine:
 
     def compile_if(self) -> None:
         """Compiles an if statement, possibly with a trailing else clause."""
+        current_if = self.if_counter
+        self.if_counter += 1
         self.tokenizer.advance()  # Skip 'if'
         self.tokenizer.advance()  # Skip '('
 
         # Compile the condition expression
         self.compile_expression()
-        self.vm_writer.write_arithmetic("not")
-        self.vm_writer.write_if(f"IF_FALSE{self.if_counter}")
+        self.vm_writer.write_if(f"IF_TRUE{current_if}")
+        self.vm_writer.write_goto(f"IF_FALSE{current_if}")
+        self.vm_writer.write_label(f"IF_TRUE{current_if}")
 
         self.tokenizer.advance()  # Skip ')'
         self.tokenizer.advance()  # Skip '{'
 
         # Compile the 'if' body
         self.compile_statements()
-        self.vm_writer.write_goto(f"IF_END{self.if_counter}")
-        self.vm_writer.write_label(f"IF_FALSE{self.if_counter}")
+        # self.vm_writer.write_goto(f"IF_END{self.if_counter}")
+        self.vm_writer.write_label(f"IF_FALSE{current_if}")
 
         self.tokenizer.advance()  # Skip '}'
 
@@ -237,7 +240,7 @@ class CompilationEngine:
             self.compile_statements()
             self.tokenizer.advance()  # Skip '}'
 
-        self.vm_writer.write_label(f"IF_END{self.if_counter}")
+        # self.vm_writer.write_label(f"IF_END{self.if_counter}")
 
         self.if_counter += 1
 
@@ -285,7 +288,7 @@ class CompilationEngine:
             if self.tokenizer.symbol() == "(":
                 self.tokenizer.advance()
                 self.compile_expression()
-                self.tokenizer.advance() # )
+                self.tokenizer.advance() # Skip ')'
             elif self.tokenizer.symbol() in ["~", "-", "^", "#"]:
                 self.tokenizer.advance()
                 self.compile_term()
