@@ -91,7 +91,7 @@ class CompilationEngine:
             self.vm_writer.write_push("argument", 0)
             self.vm_writer.write_pop("pointer", 0)
         self.compile_statements()
-        self.tokenizer.advance()
+        self.tokenizer.advance() # Skip '}'
 
     def compile_parameter_list(self) -> None:  # Naomi
         """Compiles a (possibly empty) parameter list."""
@@ -139,7 +139,7 @@ class CompilationEngine:
         self.tokenizer.advance()
         self.compile_expression()
         self.vm_writer.write_pop("temp", 0)
-        self.tokenizer.advance()
+        self.tokenizer.advance() # Skip ';'
 
     def compile_let(self) -> None:
         """Compiles a let statement."""
@@ -164,7 +164,7 @@ class CompilationEngine:
             self.compile_expression()
             self.vm_writer.write_pop(self.symbol_table.kind_of(name), self.symbol_table.index_of(name))  # Store in variable
 
-        self.tokenizer.advance()
+        self.tokenizer.advance() # Skip ';'
 
     def compile_while(self) -> None:
         """Compiles a while statement."""
@@ -178,7 +178,7 @@ class CompilationEngine:
         self.compile_expression()
 
         # Write the VM code for the condition
-        self.vm_writer.write_arithmetic("NOT")
+        self.vm_writer.write_arithmetic("not")
         self.vm_writer.write_if(f"WHILE_END{self.while_counter}")
 
         # Skip the ')' symbol and the '{' symbol
@@ -194,7 +194,6 @@ class CompilationEngine:
         # Write the label for the end of the while loop
         self.vm_writer.write_label(f"WHILE_END{self.while_counter}")
 
-        # Skip the '}' symbol
         self.tokenizer.advance()  # Skip '}'
 
         self.while_counter += 1
@@ -207,7 +206,7 @@ class CompilationEngine:
         else:
             self.vm_writer.write_push("constant", 0)
         self.vm_writer.write_return()
-        self.tokenizer.advance()
+        self.tokenizer.advance() # Skip ';'
 
     def compile_if(self) -> None:
         """Compiles an if statement, possibly with a trailing else clause."""
@@ -265,7 +264,7 @@ class CompilationEngine:
                 self.vm_writer.write_push('pointer', 0)
             self.tokenizer.advance()
         elif token_type == 'IDENTIFIER':
-            self.tokenizer.advance()
+            self.tokenizer.advance() # Skip identifier
             if self.tokenizer.symbol() == '[':
                 self.tokenizer.advance()
                 self.compile_expression()
@@ -280,7 +279,6 @@ class CompilationEngine:
             else:
                 self.vm_writer.write_push(self.symbol_table.kind_of(token_value),
                                           self.symbol_table.index_of(token_value))
-                self.tokenizer.advance()
         elif self.tokenizer.token_type() == "SYMBOL" :
             if self.tokenizer.symbol() == "(":
                 self.tokenizer.advance()
@@ -345,10 +343,10 @@ class CompilationEngine:
         """Compiles a subroutine call and generates the corresponding VM code."""
         added_args = 0
         if self.tokenizer.symbol() == '.':
-            self.tokenizer.advance()
+            self.tokenizer.advance() # Skip '.'
             class_or_var_name = subroutine_name
             subroutine_name = self.tokenizer.identifier()
-            self.tokenizer.advance()
+            self.tokenizer.advance() # Skip subroutine name
             if self.symbol_table.kind_of(class_or_var_name):  # class_or_var_name is a variable
                 self.vm_writer.write_push(self.symbol_table.kind_of(class_or_var_name),
                                           self.symbol_table.index_of(class_or_var_name))
@@ -361,7 +359,7 @@ class CompilationEngine:
             added_args = 1  # this is the first argument
             subroutine_name = f"{self.class_name}.{subroutine_name}"
 
-        self.tokenizer.advance()  # (
+        self.tokenizer.advance() # Skip '('
         n_args = self.compile_expression_list() + added_args
-        self.tokenizer.advance()  # )
+        self.tokenizer.advance()
         self.vm_writer.write_call(subroutine_name, n_args)
