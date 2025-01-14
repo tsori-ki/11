@@ -58,16 +58,18 @@ class CompilationEngine:
         """Compiles a static declaration or a field declaration."""
         kind = self.tokenizer.current_token
         self.tokenizer.advance()
-        type = self.tokenizer.current_token
+        var_type = self.tokenizer.current_token
         self.tokenizer.advance()
         name = self.tokenizer.current_token
-        self.symbol_table.define(name, type, kind)
+        self.symbol_table.define(name, var_type, kind)
         self.tokenizer.advance()
         while self.tokenizer.current_token == ",":  # if there are more variables
             self.tokenizer.advance()
             name = self.tokenizer.current_token
-            self.symbol_table.define(name, type, kind)
-            self.tokenizer.advance()
+            self.symbol_table.define(name, var_type, kind)
+            self.tokenizer.advance() # Skip variable name
+        self.tokenizer.advance() # Skip ';'
+
 
     def compile_subroutine(self) -> None:
         """Compiles a complete method, function, or constructor."""
