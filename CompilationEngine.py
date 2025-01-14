@@ -305,9 +305,10 @@ class CompilationEngine:
                 self.vm_writer.write_call("Math.multiply", 2)
             elif self.tokenizer.current_token == "/":
                 self.vm_writer.write_call("Math.divide", 2)
+            else:
+                self.compile_term()
+                self.vm_writer.write_arithmetic(self.tokenizer.current_token)
             self.tokenizer.advance()
-            self.compile_term()
-            self.vm_writer.write_arithmetic(self.tokenizer.current_token)
 
     def compile_expression_list(self) -> int:
         """Compiles a (possibly empty) comma-separated list of expressions."""
