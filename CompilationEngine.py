@@ -106,15 +106,16 @@ class CompilationEngine:
 
     def compile_var_dec(self) -> None:  # Naomi
         """Compiles a var declaration."""
-        type = self.tokenizer.current_token
+        self.tokenizer.advance() # Skip 'var'
+        var_type = self.tokenizer.current_token
         self.tokenizer.advance()
         name = self.tokenizer.current_token
-        self.symbol_table.define(name, type, "VAR")
+        self.symbol_table.define(name, var_type, "VAR")
         self.tokenizer.advance()
         while self.tokenizer.current_token == ",":  # if there are more variables
             self.tokenizer.advance()
             name = self.tokenizer.current_token
-            self.symbol_table.define(name, type, "VAR")
+            self.symbol_table.define(name, var_type, "VAR")
             self.tokenizer.advance()
         if self.tokenizer.current_token == ";":
             self.tokenizer.advance()
