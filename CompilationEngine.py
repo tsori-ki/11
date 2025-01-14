@@ -303,7 +303,7 @@ class CompilationEngine:
         while self.tokenizer.current_token in ["+", "-", "*", "/", "|", "=", "<", ">", "&"]:
             op = self.tokenizer.current_token
             self.tokenizer.advance()
-            self.compile_term()c
+            self.compile_term()
             if op == "*":
                 self.vm_writer.write_call("Math.multiply", 2)
             elif op == "/":
