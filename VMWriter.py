@@ -35,8 +35,7 @@ class VMWriter:
 
     def __init__(self, output_stream: typing.TextIO) -> None:
         """Creates a new file and prepares it for writing VM commands."""
-        self.output_stream = open(output_stream + ".vm", "w")
-        
+        self.output_stream = output_stream
 
 
     def write_push(self, segment: str, index: int) -> None:
