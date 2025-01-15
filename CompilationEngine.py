@@ -72,6 +72,7 @@ class CompilationEngine:
 
     def compile_subroutine(self) -> None:
         """Compiles a complete method, function, or constructor."""
+        self.symbol_table.start_subroutine()
         self.if_counter = 0
         self.while_counter = 0
         subroutine_type = self.tokenizer.keyword()
@@ -228,7 +229,7 @@ class CompilationEngine:
 
         # Compile the 'if' body
         self.compile_statements()
-        # self.vm_writer.write_goto(f"IF_END{self.if_counter}")
+        self.vm_writer.write_goto(f"IF_END{current_if}")
         self.vm_writer.write_label(f"IF_FALSE{current_if}")
 
         self.tokenizer.advance()  # Skip '}'
@@ -240,9 +241,7 @@ class CompilationEngine:
             self.compile_statements()
             self.tokenizer.advance()  # Skip '}'
 
-        # self.vm_writer.write_label(f"IF_END{self.if_counter}")
-
-        self.if_counter += 1
+        self.vm_writer.write_label(f"IF_END{current_if}")
 
     def compile_term(self) -> None:
         """Compiles a term and generates the corresponding VM code."""
