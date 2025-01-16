@@ -92,6 +92,7 @@ class CompilationEngine:
             self.vm_writer.write_call("Memory.alloc", 1)
             self.vm_writer.write_pop("pointer", 0)
         elif subroutine_type == "method":
+            self.symbol_table.define("this", self.class_name, "argument")
             self.vm_writer.write_push("argument", 0)
             self.vm_writer.write_pop("pointer", 0)
         self.compile_statements()
@@ -112,17 +113,17 @@ class CompilationEngine:
         """Compiles a var declaration."""
         self.tokenizer.advance() # Skip 'var'
         var_type = self.tokenizer.current_token
-        self.tokenizer.advance()
+        self.tokenizer.advance() # Skip type
         name = self.tokenizer.current_token
         self.symbol_table.define(name, var_type, "var")
-        self.tokenizer.advance()
+        self.tokenizer.advance() # Skip variable name
         while self.tokenizer.current_token == ",":  # if there are more variables
-            self.tokenizer.advance()
+            self.tokenizer.advance() # Skip ','
             name = self.tokenizer.current_token
             self.symbol_table.define(name, var_type, "var")
-            self.tokenizer.advance()
+            self.tokenizer.advance() # Skip variable name
         if self.tokenizer.current_token == ";":
-            self.tokenizer.advance()
+            self.tokenizer.advance() # Skip ';'
 
     def compile_statements(self) -> None:
         """Compiles a sequence of statements."""
@@ -147,25 +148,25 @@ class CompilationEngine:
 
     def compile_let(self) -> None:
         """Compiles a let statement."""
-        self.tokenizer.advance()  
+        self.tokenizer.advance() # Skip 'let'
         name = self.tokenizer.current_token
-        self.tokenizer.advance()
+        self.tokenizer.advance() # Skip variable name
 
         if self.tokenizer.current_token == "[":  # Array assignment
-            self.tokenizer.advance()
+            self.tokenizer.advance() # Skip '['
             self.compile_expression()
             self.vm_writer.write_push(self.symbol_table.kind_of(name), self.symbol_table.index_of(name))  # Push array base
             self.vm_writer.write_arithmetic("+")  # Compute address (base + index)
-            self.tokenizer.advance()
-            self.tokenizer.advance()  
-            self.compile_expression()  
+            self.tokenizer.advance() # Skip ']'
+            self.tokenizer.advance()  # Skip '='
+            self.compile_expression() # Compute value to store  
             self.vm_writer.write_pop("temp", 0)  # Store value temporarily
             self.vm_writer.write_pop("pointer", 1)  # Set pointer 1 to computed address
             self.vm_writer.write_push("temp", 0)  # Push the value
             self.vm_writer.write_pop("that", 0)  # Write value to address
         elif self.tokenizer.current_token == "=":  # Variable assignment
-            self.tokenizer.advance()  
-            self.compile_expression()
+            self.tokenizer.advance()  # Skip '='
+            self.compile_expression() # Comute expression on the right
             self.vm_writer.write_pop(self.symbol_table.kind_of(name), self.symbol_table.index_of(name))  # Store in variable
 
         self.tokenizer.advance() # Skip ';'
@@ -270,7 +271,7 @@ class CompilationEngine:
         elif token_type == 'IDENTIFIER':
             self.tokenizer.advance() # Skip identifier
             if self.tokenizer.symbol() == '[':
-                self.tokenizer.advance()
+                self.tokenizer.advance() 
                 self.compile_expression()
                 self.vm_writer.write_push(self.symbol_table.kind_of(token_value), self.symbol_table.index_of(token_value))
                 self.vm_writer.write_arithmetic('+')
