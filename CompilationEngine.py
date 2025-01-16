@@ -81,6 +81,8 @@ class CompilationEngine:
         subroutine_name = self.tokenizer.identifier()
         self.tokenizer.advance() # Skip subroutine name
         self.tokenizer.advance() # Skip '('
+        if subroutine_type == "method":
+            self.symbol_table.define("this", self.class_name, "argument")
         self.compile_parameter_list()
         self.tokenizer.advance() # Skip ')'
         self.tokenizer.advance() # Skip '{'
@@ -92,7 +94,6 @@ class CompilationEngine:
             self.vm_writer.write_call("Memory.alloc", 1)
             self.vm_writer.write_pop("pointer", 0)
         elif subroutine_type == "method":
-            self.symbol_table.define("this", self.class_name, "argument")
             self.vm_writer.write_push("argument", 0)
             self.vm_writer.write_pop("pointer", 0)
         self.compile_statements()
@@ -230,19 +231,21 @@ class CompilationEngine:
 
         # Compile the 'if' body
         self.compile_statements()
-        self.vm_writer.write_goto(f"IF_END{current_if}")
-        self.vm_writer.write_label(f"IF_FALSE{current_if}")
+
 
         self.tokenizer.advance()  # Skip '}'
 
         # Compile the 'else' body if present
         if self.tokenizer.current_token == "else":
+            self.vm_writer.write_goto(f"IF_END{current_if}")
+            self.vm_writer.write_label(f"IF_FALSE{current_if}")
             self.tokenizer.advance()  # Skip 'else'
             self.tokenizer.advance()  # Skip '{'
             self.compile_statements()
             self.tokenizer.advance()  # Skip '}'
-
-        self.vm_writer.write_label(f"IF_END{current_if}")
+            self.vm_writer.write_label(f"IF_END{current_if}")
+        else:
+            self.vm_writer.write_label(f"IF_FALSE{current_if}")
 
     def compile_term(self) -> None:
         """Compiles a term and generates the corresponding VM code."""
